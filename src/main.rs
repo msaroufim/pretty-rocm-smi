@@ -228,7 +228,7 @@ fn main() {
         ansi::DIM, ansi::RESET, ansi::BOLD, rocm,
     );
     let info_plain = format!("{} ({}) Driver: {}  ROCm: {}", gpu_name, gfx_ver, driver, rocm);
-    let info_pad = w.saturating_sub(2 + info_plain.len());
+    let info_pad = w.saturating_sub(1 + info_plain.len());
     println!("{}║{} {}{}{}{}║{}", ansi::CYAN, ansi::RESET, info, ansi::RESET, " ".repeat(info_pad), ansi::CYAN, ansi::RESET);
 
     println!("{}╠{}╣{}", ansi::CYAN, "═".repeat(w), ansi::RESET);
