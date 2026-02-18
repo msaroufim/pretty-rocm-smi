@@ -2,6 +2,8 @@
 
 A prettier `rocm-smi` with color-coded GPU stats.
 
+![screenshot](screenshot.png)
+
 ## Installation
 
 ```bash
