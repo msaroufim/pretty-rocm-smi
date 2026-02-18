@@ -238,7 +238,7 @@ fn main() {
         " {}{}GPU   Temp    Power Usage         VRAM Usage           GPU%{}",
         ansi::BOLD, ansi::WHITE, ansi::RESET
     );
-    println!("{}║{}{} {}║{}", ansi::CYAN, ansi::RESET, rpad(&hdr, w), ansi::CYAN, ansi::RESET);
+    println!("{}║{}{}{}║{}", ansi::CYAN, ansi::RESET, rpad(&hdr, w), ansi::CYAN, ansi::RESET);
     println!("{}╟{}╢{}", ansi::CYAN, "─".repeat(w), ansi::RESET);
 
     // GPU rows
@@ -282,7 +282,7 @@ fn main() {
             lpad(&util_s, 4),
         );
 
-        println!("{}║{}{} {}║{}", ansi::CYAN, ansi::RESET, rpad(&row, w), ansi::CYAN, ansi::RESET);
+        println!("{}║{}{}{}║{}", ansi::CYAN, ansi::RESET, rpad(&row, w), ansi::CYAN, ansi::RESET);
     }
 
     println!("{}╚{}╝{}", ansi::CYAN, "═".repeat(w), ansi::RESET);
