@@ -176,10 +176,10 @@ fn ansi_ratio(ratio: f64) -> &'static str {
     else { ansi::DIM }
 }
 
-/// Visible length of a string (strips ANSI escapes)
+/// Visible column width of a string (strips ANSI escapes, counts chars not bytes)
 fn vlen(s: &str) -> usize {
     let re = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
-    re.replace_all(s, "").len()
+    re.replace_all(s, "").chars().count()
 }
 
 fn rpad(s: &str, w: usize) -> String {
