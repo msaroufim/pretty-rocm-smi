@@ -2,7 +2,7 @@
 
 A prettier `rocm-smi` with color-coded GPU stats.
 
-![screenshot](screenshot.png)
+![demo](demo.png)
 
 ## Installation
 
