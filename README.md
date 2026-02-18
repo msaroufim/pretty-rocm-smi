@@ -26,3 +26,7 @@ pretty-rocm-smi
 
 - Linux with AMD GPUs
 - `rocm-smi` installed (comes with ROCm)
+
+## Acknowledgements
+
+Thank you to Tensorwave for sponsoring our copute
