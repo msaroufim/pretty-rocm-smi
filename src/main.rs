@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::process::Command;
 
 use chrono::Local;
@@ -17,6 +18,14 @@ struct GpuSnapshot {
     gpu_pct: f64,
     vram_total: u64,
     vram_used: u64,
+}
+
+#[derive(Debug, Clone)]
+struct GpuProcess {
+    pid: u32,
+    name: String,
+    gpu_id: u32,
+    vram_bytes: u64,
 }
 
 // ── Data collection ─────────────────────────────────────────────────────────
@@ -137,6 +146,48 @@ fn get_gpu_data() -> Vec<GpuSnapshot> {
     }
 
     gpus
+}
+
+fn get_gpu_processes() -> Vec<GpuProcess> {
+    // Get PID -> GPU mapping from --showpidgpus
+    let pidgpus = run_cmd("rocm-smi", &["--showpidgpus"]);
+    let mut pid_gpu: HashMap<u32, u32> = HashMap::new();
+    let re_pid = Regex::new(r"PID\s+(\d+)\s+is using").unwrap();
+    let mut current_pid: Option<u32> = None;
+    for line in pidgpus.lines() {
+        let line = line.trim();
+        if let Some(cap) = re_pid.captures(line) {
+            current_pid = cap.get(1).and_then(|m| m.as_str().parse().ok());
+        } else if let Some(pid) = current_pid {
+            if let Ok(gpu_id) = line.parse::<u32>() {
+                pid_gpu.insert(pid, gpu_id);
+                current_pid = None;
+            }
+        }
+    }
+
+    // Get process info from --showpids (tabular output)
+    let pids_out = run_cmd("rocm-smi", &["--showpids"]);
+    let mut procs: Vec<GpuProcess> = Vec::new();
+    for line in pids_out.lines() {
+        let line = line.trim();
+        if line.is_empty() || !line.starts_with(|c: char| c.is_ascii_digit()) {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        // Format: PID  PROCESS_NAME  GPU(s)  VRAM_USED  SDMA_USED  CU_OCCUPANCY
+        if parts.len() >= 4 {
+            if let Ok(pid) = parts[0].parse::<u32>() {
+                let name = parts[1].to_string();
+                let vram_bytes: u64 = parts[3].parse().unwrap_or(0);
+                let gpu_id = pid_gpu.get(&pid).copied().unwrap_or(0);
+                procs.push(GpuProcess { pid, name, gpu_id, vram_bytes });
+            }
+        }
+    }
+
+    procs.sort_by_key(|p| (p.gpu_id, p.pid));
+    procs
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -310,5 +361,48 @@ fn main() {
         ansi::DIM, ansi::RESET,
         tc, avg_temp, ansi::RESET,
     );
+
+    // Process table
+    let procs = get_gpu_processes();
+    println!("{}╔{}╗{}", ansi::CYAN, "═".repeat(w), ansi::RESET);
+    let proc_title = format!(
+        " {}{}Processes:{}",
+        ansi::BOLD, ansi::WHITE, ansi::RESET
+    );
+    println!("{}║{}{}{}║{}", ansi::CYAN, ansi::RESET, rpad(&proc_title, w), ansi::CYAN, ansi::RESET);
+
+    let proc_hdr = format!(
+        " {}{}GPU      PID   Process name                       GPU Memory{}",
+        ansi::BOLD, ansi::WHITE, ansi::RESET
+    );
+    println!("{}║{}{}{}║{}", ansi::CYAN, ansi::RESET, rpad(&proc_hdr, w), ansi::CYAN, ansi::RESET);
+    println!("{}╟{}╢{}", ansi::CYAN, "─".repeat(w), ansi::RESET);
+
+    if procs.is_empty() {
+        let no_proc = format!(
+            " {}No running processes found{}",
+            ansi::DIM, ansi::RESET
+        );
+        println!("{}║{}{}{}║{}", ansi::CYAN, ansi::RESET, rpad(&no_proc, w), ansi::CYAN, ansi::RESET);
+    } else {
+        for p in &procs {
+            let vram_mib = p.vram_bytes / (1024 * 1024);
+            let gpu_s = format!("{}{}{:>3}{}", ansi::BOLD, ansi::WHITE, p.gpu_id, ansi::RESET);
+            let pid_s = format!("{}{}{}", ansi::WHITE, p.pid, ansi::RESET);
+            let name_s = format!("{}{}{}", ansi::GREEN, p.name, ansi::RESET);
+            let mem_s = format!("{}{}MiB{}", ansi::YELLOW, vram_mib, ansi::RESET);
+
+            let row = format!(
+                " {}   {:>8}   {}   {}",
+                lpad(&gpu_s, 3),
+                lpad(&pid_s, 8),
+                rpad(&name_s, 33),
+                lpad(&mem_s, 10),
+            );
+            println!("{}║{}{}{}║{}", ansi::CYAN, ansi::RESET, rpad(&row, w), ansi::CYAN, ansi::RESET);
+        }
+    }
+
+    println!("{}╚{}╝{}", ansi::CYAN, "═".repeat(w), ansi::RESET);
     println!();
 }
